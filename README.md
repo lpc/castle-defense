@@ -1,4 +1,3 @@
-==============
 Castle Defense
 ==============
 
@@ -8,7 +7,6 @@ To play, type the answers to activate your archers. Kill the skeletons before th
 
 To contact the author, send an email to Bryant at chesswhiz@gmail.com
 
---------------------
 Building and Running
 --------------------
 
