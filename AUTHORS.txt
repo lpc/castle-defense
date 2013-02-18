@@ -1,0 +1,28 @@
+Code authors
+============
+
+This program was written by the following people:
+ - Bryant Brownell
+
+
+Asset attribution
+=================
+
+Assets were authored by the following people:
+
+Guido Bos
+ - tiles.png
+
+Johannes Sjölund
+ - sprites.png
+ - player.png
+ - favicon.gif
+
+Nelson James Gatlin
+ - torvald.ogg
+
+Johnathan Roatch
+ - metal-switch.ogg
+ - vocal-percussion-8.ogg
+ - metal-bowl.ogg
+ - metal-bowl-with-water.ogg

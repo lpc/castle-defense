@@ -1,0 +1,214 @@
+﻿<!--
+# Castle Defense: An action-packed HTML5 math game
+# Copyright (C) 2012 Bryant Brownell
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Castle Defense</title>
+
+    <link href="Content/Site.css" rel="stylesheet" type="text/css" />
+    <link rel="shortcut icon" href="Content/favicon.gif" type="image/gif" />
+
+    <script type="text/javascript" src="Engine/AssetManager.js"></script>
+    <script type="text/javascript" src="Engine/AudioManager.js"></script>
+    <script type="text/javascript" src="Engine/Globals.js"></script>
+    <script type="text/javascript" src="Engine/Timer.js"></script>
+    <script type="text/javascript" src="Engine/Map.js"></script>
+    <script type="text/javascript" src="Engine/Arrow.js"></script>
+    <script type="text/javascript" src="Engine/Runner.js"></script>
+    <script type="text/javascript" src="Engine/Archer.js"></script>
+    <script type="text/javascript" src="Engine/Profile.js"></script>
+    <script type="text/javascript" src="Engine/World.js"></script>
+    <script type="text/javascript" src="Engine/Highscore.js"></script>
+    <script type="text/javascript" src="Engine/MapsDB.js"></script>
+    <script type="text/javascript" src="Engine/LevelsDB.js"></script>
+</head>
+<body>
+    <div id="canvasContainer">
+        <canvas id="bgCanvas" class="playground" width="960" height="600" oncontextmenu="return false;"></canvas>
+        <canvas id="actorCanvas" class="playground" width="960" height="600" oncontextmenu="return false;"></canvas>
+        <canvas id="arrowCanvas" class="playground" width="960" height="600" oncontextmenu="return false;"></canvas>
+    </div>
+
+    <audio id="musicAudio" preload="auto" autoplay="autoplay" loop="loop">
+        <source src="Audio/torvald.ogg" type="audio/ogg" />
+    </audio>
+    <audio id="archerFireAudio" preload="auto">
+        <source src="Audio/metal-switch.ogg" type="audio/ogg" />
+    </audio>
+    <audio id="skeletonDeathAudio" preload="auto">
+        <source src="Audio/vocal-percussion-8.ogg" type="audio/ogg" />
+    </audio>
+    <audio id="wrongAnswerAudio" preload="auto">
+        <source src="Audio/metal-bowl.ogg" type="audio/ogg" />
+    </audio>
+    <audio id="loseLifeAudio" preload="auto">
+        <source src="Audio/metal-bowl-with-water.ogg" type="audio/ogg" />
+    </audio>
+
+    <script type="text/javascript">
+        resizePlayground = function () {
+            var scale = Math.min(document.getElementsByTagName('body')[0].getBoundingClientRect().width / 960, document.getElementsByTagName('body')[0].getBoundingClientRect().height / 600);
+            var newHeight = Math.floor(600 * scale);
+            var newWidth = Math.floor(960 * scale);
+
+            var playgrounds = document.getElementsByClassName('playground');
+            for (var i = 0; i < playgrounds.length; i++) {
+                playgrounds[i].style.width = newWidth + 'px';
+                playgrounds[i].style.height = newHeight + 'px';
+                playgrounds[i].style.marginLeft = '-' + Math.floor(newWidth / 2) + 'px';
+                playgrounds[i].style.marginTop = '-' + Math.floor(newHeight / 2) + 'px';
+            }
+        }
+
+        resizeFunction = function () {
+            resizePlayground();
+        };
+
+        window.onresize = resizeFunction;
+
+        function keyPressed(e) {
+            var key = window.event ? event.keyCode : e.which;
+
+            if ((key >= KEYS.KEY_0 && key <= KEYS.KEY_9) || (key >= KEYS.KEY_NUMPAD_0 && key <= KEYS.KEY_NUMPAD_9)) {
+                if (world.state == WorldState.RUNNING) {
+                    var typed = key < KEYS.KEY_NUMPAD_0 ? (key - KEYS.KEY_0) : (key - KEYS.KEY_NUMPAD_0);
+                    world.answer = (world.answer) * 10 + typed;
+                    world.numberChanged();
+                }
+            }
+            else if (key == KEYS.KEY_BACKSPACE) {
+                if (world.answer > 0) {
+                    world.answer = Math.floor(world.answer / 10);
+                    world.numberChanged();
+                }
+
+                return false;
+            }
+            else if (key == KEYS.KEY_ENTER) {
+                if (world.state == WorldState.WELCOME || world.state == WorldState.LEVELUP) {
+                    myFadeOut(canvases, function () {
+                        world.init(profile.level);
+                        world.state = WorldState.FADING_IN;
+                        world.drawBackground();
+                        world.draw();
+
+                        
+                        myFadeIn(canvases, function () { world.state = WorldState.RUNNING; });
+                    });
+                }
+                else if (world.state == WorldState.GAMEOVER) {
+                    myFadeOut(canvases, function () {
+                        profile.reset();
+                        world.reset();
+                        world.drawWelcome();
+                        myFadeIn(canvases, function () { });
+                    });
+                }
+            }
+            else if (key == KEYS.KEY_M) {
+                if (typeof (musicStopped) !== 'undefined' && musicStopped === true) {
+                    AUDIO_MANAGER.play('music');
+                    musicStopped = false;
+                }
+                else {
+                    AUDIO_MANAGER.pause('music');
+                    musicStopped = true;
+                }
+            }
+        }
+
+        levelupCallback = function () {
+            myFadeOut(canvases, function () {
+                world.state = WorldState.LEVELUP;
+                world.drawLevelup();
+                profile.level += 1;
+                profile.lives += 1;
+                profile.score += world.speedBonus;
+
+                myFadeIn(canvases, function () { });
+            });
+        };
+
+        gameoverCallback = function () {
+            myFadeOut(canvases, function () {
+                saveHighscore();
+
+                world.state = WorldState.GAMEOVER;
+                world.drawGameover();
+
+                myFadeIn(canvases, function () { });
+            });
+        };
+
+        resizePlayground();
+        canvases = document.getElementById('canvasContainer');
+
+        profile = new Profile();
+        loadHighscore();
+
+        world = new World(document.getElementById('bgCanvas'));
+        world.init(profile.level);
+        world.start(true);
+
+        function suppressBackspace(evt) {
+            var key = window.event ? event.keyCode : e.which;
+            if (key == KEYS.KEY_BACKSPACE)
+                return false;
+        }
+        
+        document.onkeydown = suppressBackspace;
+        document.onkeypress = keyPressed;
+
+        function myFadeOut(el, func) {
+            var op = 1;
+            var timer = setInterval(function () {
+                if (op <= 0.1){
+                    clearInterval(timer);
+                    el.style.visibility = 'hidden';
+                    setTimeout(func, 200);
+                }
+
+                el.style.opacity = op;
+                el.style.filter = 'alpha(opacity=' + op * 100 + ")";
+                
+                op -= op * 0.1;
+            }, 30);
+        }
+
+        function myFadeIn(el, func) {
+            el.style.visibility = 'visible';
+            var op = el.style.opacity;
+
+            var timer = setInterval(function () {
+                if (op >= 1) {
+                    clearInterval(timer);
+                    func();
+                }
+
+                el.style.opacity = op;
+                el.style.filter = 'alpha(opacity=' + op * 100 + ")";
+
+                op /= 0.5;
+            }, 50);
+        }
+    </script>
+
+    <script type="text/javascript" src="Engine/KeyboardManager.js"></script>
+</body>
+</html>
